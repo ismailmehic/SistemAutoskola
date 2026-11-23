@@ -1,0 +1,103 @@
+name: Test i objava
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: driving-school-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test_owner
+          POSTGRES_PASSWORD: ci_database_only
+          POSTGRES_DB: driving_school_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_owner -d driving_school_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.428'
+
+      - name: Izgradi Angular
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Izgradi API
+        run: dotnet publish backend/DrivingSchool.Api -c Release -o "$RUNNER_TEMP/release/api"
+
+      - name: Provjeri aplikaciju na PostgreSQL-u
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://127.0.0.1:5080
+          ConnectionStrings__Database: Host=127.0.0.1;Database=driving_school_ci;Username=test_owner;Password=ci_database_only
+          Admin__Email: owner@example.test
+          Admin__Password: Only for isolated CI tests
+          Auth__AllowInsecureDevCookie: 'true'
+          TEST_API_URL: http://127.0.0.1:5080
+          TEST_ADMIN_EMAIL: owner@example.test
+          TEST_ADMIN_PASSWORD: Only for isolated CI tests
+        run: |
+          export Storage__Directory="$RUNNER_TEMP/ci-documents"
+          export Auth__SigningKey="$(openssl rand -hex 48)"
+          api="$RUNNER_TEMP/release/api/DrivingSchool.Api.dll"
+          dotnet "$api" --migrate
+          dotnet "$api" > "$RUNNER_TEMP/api.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl -fsS "$TEST_API_URL/swagger/v1/swagger.json" -o /dev/null; then break; fi
+            if ! kill -0 "$pid" 2>/dev/null; then cat "$RUNNER_TEMP/api.log"; exit 1; fi
+            sleep 1
+          done
+          node --test tests/api.test.mjs
+
+      - name: Objavi na Hetzneru
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true'
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          test -n "$DEPLOY_HOST" && test -n "$DEPLOY_SSH_KEY" && test -n "$DEPLOY_KNOWN_HOSTS"
+          umask 077
+          ssh_dir="$(mktemp -d "$RUNNER_TEMP/deploy-ssh.XXXXXX")"
+          trap 'rm -rf -- "$ssh_dir"' EXIT
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          cp -r frontend/dist/autoskola/browser "$RUNNER_TEMP/release/web"
+          tar -C "$RUNNER_TEMP/release" -czf "$RUNNER_TEMP/release.tar.gz" api web
+          # The dedicated server key forces the release command and accepts the revision plus archive on stdin.
+          { printf '%s\n' "$GITHUB_SHA"; cat "$RUNNER_TEMP/release.tar.gz"; } |
+            ssh -T -i "$ssh_dir/key" -p "$DEPLOY_PORT" -o BatchMode=yes -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$ssh_dir/known_hosts" \
+              -o ConnectTimeout=15 -- "driving-school-deploy@$DEPLOY_HOST"

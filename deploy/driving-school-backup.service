@@ -1,0 +1,18 @@
+[Unit]
+Description=Sifrovani backup sistema autoskola
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=driving-school
+Group=driving-school
+EnvironmentFile=/etc/driving-school/backup.env
+# Keep the Restic cache writable under the same private application directory.
+Environment=RESTIC_CACHE_DIR=/var/lib/driving-school/backup-work/cache
+ExecStart=/bin/bash /opt/driving-school/deploy/backup.sh
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/driving-school/backup-work
+NoNewPrivileges=true
+UMask=0077

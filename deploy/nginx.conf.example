@@ -1,0 +1,53 @@
+server {
+    listen 80;
+    listen [::]:80;
+    server_name autoskola.example.invalid;
+    root /var/www/driving-school-acme;
+    location /.well-known/acme-challenge/ { try_files $uri =404; }
+    location / { return 301 https://$server_name$request_uri; }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name autoskola.example.invalid;
+    ssl_certificate /etc/letsencrypt/live/autoskola.example.invalid/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/autoskola.example.invalid/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    root /opt/driving-school/current/web;
+    index index.html;
+    client_max_body_size 128m;
+    access_log off;
+    error_log /var/log/nginx/driving-school-error.log crit;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy no-referrer always;
+    add_header Permissions-Policy "camera=(self), microphone=(), geolocation=()" always;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:5080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $server_name;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 210s;
+    }
+
+    location = /pdfjs/pdf.worker.min.mjs {
+        types { text/javascript mjs; }
+        try_files $uri =404;
+    }
+
+    location / {
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Frame-Options SAMEORIGIN always;
+        add_header Referrer-Policy no-referrer always;
+        add_header Permissions-Policy "camera=(self), microphone=(), geolocation=()" always;
+        add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; worker-src 'self'; font-src 'self' blob:; object-src 'none'" always;
+        try_files $uri $uri/ /index.html;
+    }
+}

@@ -1,0 +1,22 @@
+[Unit]
+Description=Sistem autoskola API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=driving-school
+Group=driving-school
+WorkingDirectory=/opt/driving-school/current/api
+EnvironmentFile=/etc/driving-school/app.env
+ExecStart=/usr/bin/dotnet /opt/driving-school/current/api/DrivingSchool.Api.dll
+Restart=on-failure
+RestartSec=4s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/driving-school/documents
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,1545 @@
+# PROJECT: Driving School Management System
+
+You are a senior full-stack software engineer and software architect.
+
+Build a complete, production-oriented, minimal, modern, responsive web application for managing a driving school in Bosnia and Herzegovina.
+
+The application must be extremely simple to use. It is an internal administrative tool, not a large enterprise management system.
+
+The most important feature is an electronic register book (E-Matična knjiga) that closely reproduces the official physical register book used by driving schools.
+
+Other core features are candidate management, document management, payment tracking, instructor assignment, document-assisted candidate creation, and register archiving.
+
+## 1. TECHNOLOGY STACK
+
+Backend:
+- ASP.NET Core Web API
+- .NET 8
+- Entity Framework Core
+- PostgreSQL
+- FluentValidation
+- JWT authentication
+- Refresh tokens stored in HttpOnly cookies
+- Swagger / OpenAPI
+- Dependency Injection
+- Clean, maintainable service-based architecture
+
+Frontend:
+- Angular 21
+- Standalone components
+- TypeScript
+- Angular Signals for local and shared state
+- Angular Reactive Forms
+- SCSS
+- Angular Router
+- Lazy-loaded feature components
+- Responsive layout
+- Lucide icons or another consistent lightweight icon library
+
+Infrastructure:
+- Ubuntu server
+- Nginx
+- PostgreSQL
+- systemd for the backend
+- HTTPS
+- Private document storage
+- Environment-based configuration
+
+Do not introduce unnecessary technologies such as microservices, message brokers, Redis, Kubernetes, or complicated event-driven architecture.
+
+This application should remain a simple monolith.
+
+## 2. GENERAL REQUIREMENTS
+
+The application must:
+
+- Work on desktop computers, laptops, tablets, and smartphones.
+- Have a modern, minimal, professional interface.
+- Use Bosnian as the default interface language.
+- Use the Europe/Sarajevo timezone for displayed dates.
+- Store timestamps in UTC where appropriate.
+- Support proper Bosnian characters: č, ć, š, đ, ž.
+- Be fast and easy to navigate.
+- Avoid unnecessary screens and complicated workflows.
+- Use confirmation dialogs for destructive actions.
+- Show useful validation and error messages.
+- Have loading indicators and empty states.
+- Use server-side pagination where appropriate.
+- Support searching and filtering.
+- Never expose sensitive documents through public URLs.
+
+All primary UI labels, validation messages, and notifications should be in Bosnian.
+
+## 3. MAIN NAVIGATION
+
+Create only these five main navigation sections:
+
+1. Dashboard
+2. E-Matična knjiga
+3. Kandidati
+4. Instruktori
+5. Postavke
+
+Do not create separate main navigation items for payments, documents, or archives.
+
+Payments and documents belong inside candidate profiles.
+
+Archived register books belong inside E-Matična knjiga.
+
+Desktop layout:
+- Left sidebar
+- Top header
+- Main content area
+
+Mobile layout:
+- Compact navigation
+- Responsive forms
+- Touch-friendly buttons
+- No unnecessary horizontal scrolling, except where unavoidable for the register table
+
+Use a consistent design system with reusable components.
+
+## 4. AUTHENTICATION AND AUTHORIZATION
+
+Implement secure authentication.
+
+Features:
+- Login
+- Logout
+- Access token
+- Refresh token rotation
+- Protected routes
+- Current authenticated user
+- Password hashing
+- Session expiration handling
+
+Roles:
+- ADMIN
+- STAFF
+
+ADMIN can manage users, instructors, settings, register books, and candidates.
+
+STAFF can manage candidates, documents, payments, and register entries according to assigned permissions.
+
+Never allow public registration.
+
+The first administrator should be created through a secure setup or seed mechanism using environment variables.
+
+Do not hardcode administrator passwords.
+
+All endpoints must enforce authorization on the backend.
+
+## 5. DASHBOARD
+
+Create a simple dashboard.
+
+Display:
+- Total candidates
+- Active candidates
+- Completed candidates
+- Total outstanding payments
+- Recent candidates
+
+Quick actions:
+- Dodaj kandidata
+- Otvori matičnu knjigu
+- Dodaj uplatu
+
+Do not create complicated charts.
+
+Use clean statistic cards and a recent candidates table.
+
+## 6. ELECTRONIC REGISTER BOOK — MOST IMPORTANT MODULE
+
+The electronic register book must visually and functionally resemble the physical register book.
+
+The physical register book contains:
+
+Header:
+- MATIČNA KNJIGA
+- Driving school name
+- Year
+- Page number displayed in the upper-right corner
+
+Table columns:
+
+1. Redni broj
+2. Prezime i ime (ime oca)
+3. Datum rođenja / Općina rođenja
+4. Ljekarsko uvjerenje:
+   - Broj
+   - Datum
+   - Naziv zdravstvene ustanove
+5. Broj i datum potvrde o završenoj obuci:
+   - Teoretska nastava
+6. Broj i datum potvrde o završenoj obuci:
+   - Pružanje prve pomoći
+7. Broj i datum potvrde o završenoj obuci:
+   - Upravljanje motornim vozilom
+8. Napomena
+
+Use the supplied photograph as the visual reference.
+
+The image is a reference for the physical layout and table structure.
+
+Do not invent additional official columns.
+
+### Register book structure
+
+A register book belongs to:
+- A driving school
+- A specific year
+
+Example:
+Matična knjiga — 2027
+
+Each register book contains pages.
+
+Example:
+- Page 1
+- Page 2
+- Page 3
+
+Each page contains a fixed number of rows.
+
+The number of rows must be configurable before the register book is first used.
+
+Do not assume the photographed page contains exactly ten rows.
+
+The administrator must be able to set the number of rows according to the actual physical book.
+
+Once a book contains entries, its page capacity must not be changed through normal settings.
+
+### Register book interface
+
+At the top display:
+
+Matična knjiga — 2027
+
+Right side:
+
+Strana: 1
+
+Controls:
+- Previous page
+- Next page
+- Select year
+- Select page
+- Add candidate
+- Print
+- Export PDF
+- Archive
+
+Render all rows, including empty rows.
+
+If a page has a capacity of ten rows, display exactly ten rows.
+
+Empty rows must remain visible.
+
+The register should resemble a paper register but remain usable digitally.
+
+### Candidate linking
+
+Each populated row must link to an existing candidate.
+
+Clicking the candidate's name opens:
+
+/candidates/{candidateId}
+
+The register must not create duplicate candidate records.
+
+### Adding a register entry
+
+Provide an action:
+
+Dodaj kandidata u matičnu knjigu
+
+The user selects an existing candidate or creates a new candidate.
+
+The system suggests the next available position.
+
+The user confirms the entry.
+
+Use database transactions and constraints to prevent duplicate allocation of the same register position.
+
+### Editing
+
+Allow authorized users to edit register information.
+
+Changes must be recorded in an audit log.
+
+Store:
+- Who changed the record
+- When it was changed
+- Which fields changed
+- Previous values
+- New values
+
+### Deleting
+
+Support removing an entry from an active register, but do not automatically renumber existing entries.
+
+Require a reason and confirmation.
+
+Preserve an audit record.
+
+Use a voided-entry or equivalent safe approach rather than silently destroying official history.
+
+### Register numbering
+
+Implement stable numbering.
+
+Each register entry should have:
+- Register book ID
+- Page number
+- Row number
+- Displayed serial number
+
+Once assigned, a serial number must not be automatically changed when another entry is removed.
+
+Prevent duplicate active positions.
+
+### Archiving
+
+Provide:
+
+Arhiviraj matičnu knjigu
+
+When archiving:
+- Require administrator confirmation.
+- Prevent ordinary editing.
+- Preserve all existing pages and positions.
+- Keep the archived book accessible.
+- Allow PDF export and printing.
+- Record who archived it and when.
+
+Archived books must be read-only through normal application workflows.
+
+Any exceptional correction workflow must be separately authorized and audited.
+
+### PDF export
+
+Generate printable PDF files.
+
+The exported register must:
+- Use a layout closely matching the physical book.
+- Preserve the configured number of rows per page.
+- Display the correct year and page number.
+- Preserve column structure.
+- Support Bosnian characters.
+- Avoid splitting a register page across multiple PDF pages.
+- Use appropriate landscape or portrait page sizing based on the physical reference.
+
+Use a suitable .NET PDF generation library.
+
+Create a reusable PDF generation service.
+
+## 7. CANDIDATE MANAGEMENT
+
+Create a candidate management module.
+
+Candidate fields:
+
+- Id
+- FirstName
+- LastName
+- FatherName
+- DateOfBirth
+- MunicipalityOfBirth
+- JMBG (optional, sensitive)
+- Address
+- Phone
+- Email
+- DrivingCategory
+- EnrollmentDate
+- Status
+- Notes
+- CreatedAt
+- UpdatedAt
+
+Statuses:
+- ACTIVE
+- COMPLETED
+- INACTIVE
+
+Use Bosnian labels:
+- Aktivan
+- Završio obuku
+- Neaktivan
+
+Candidate list must support:
+- Search by name
+- Filter by status
+- Filter by instructor
+- Filter by enrollment year
+- Pagination
+- Add candidate
+- Edit candidate
+- Archive/deactivate candidate
+
+Avoid hard-deleting candidates who have register entries, payments, or documents.
+
+### Candidate details
+
+Create a candidate details page.
+
+Header:
+- Candidate full name
+- Status
+- Assigned instructor
+- Driving category
+
+Tabs:
+
+1. Podaci
+2. Dokumenti
+3. Uplate
+4. Obuka
+
+Keep the interface compact.
+
+## 8. CANDIDATE DOCUMENT MANAGEMENT
+
+Every candidate must have a dedicated document section.
+
+Documents should be stored separately, not combined into one permanent PDF.
+
+Support:
+- PDF
+- JPG
+- JPEG
+- PNG
+
+Document types must be configurable.
+
+Initial document types:
+
+- Lična karta
+- CIPS
+- Ljekarsko uvjerenje
+- Potvrda o teoretskoj nastavi
+- Potvrda o prvoj pomoći
+- Potvrda o praktičnoj obuci
+- Ostalo
+
+These are initial categories, not a legally verified exhaustive list.
+
+Each document should have:
+- Id
+- CandidateId
+- DocumentTypeId
+- OriginalFileName
+- StorageKey
+- ContentType
+- FileSize
+- UploadedAt
+- UploadedBy
+- Optional document date
+- Optional expiration date
+- Optional notes
+
+### Document UI
+
+Display documents as a simple list or grid.
+
+For each document show:
+- Document name
+- Type
+- Upload date
+- View button
+- Download button
+- Replace button
+- Delete/remove button where permitted
+
+Provide PDF and image preview.
+
+Allow users to upload multiple documents at once.
+
+Support mobile camera uploads through the browser.
+
+Provide an action:
+
+Preuzmi kompletnu dokumentaciju
+
+This should generate a ZIP containing the candidate's available documents.
+
+Optionally provide a merged PDF for compatible documents.
+
+Do not permanently merge all source documents.
+
+### Document security
+
+Files must be stored outside the public web root.
+
+Do not expose physical file paths.
+
+All downloads must go through authorized backend endpoints.
+
+Use generated storage identifiers rather than trusting uploaded filenames.
+
+Validate:
+- File size
+- File extension
+- Actual file content/type
+
+Reject unsafe files.
+
+Use configurable upload limits.
+
+Prevent path traversal.
+
+Log document access and changes.
+
+## 9. AUTOMATIC DOCUMENT DATA EXTRACTION
+
+This is a critical feature.
+
+The system must be architected to support automatic extraction of candidate information from scanned documents.
+
+The workflow:
+
+1. User clicks "Dodaj kandidata".
+2. User uploads one or multiple documents.
+3. Backend securely stores temporary uploads.
+4. OCR service processes the documents.
+5. Extracted information is mapped into candidate fields.
+6. Frontend displays a review form.
+7. User checks and corrects extracted values.
+8. User confirms.
+9. Backend creates the candidate.
+10. Documents are linked to the new candidate.
+11. User may optionally add the candidate to the active register book.
+
+Never automatically save extracted personal information without explicit user confirmation.
+
+### OCR architecture
+
+Create an abstraction:
+
+IDocumentExtractionService
+
+Example method:
+
+Task<DocumentExtractionResult> ExtractAsync(
+    Stream documentStream,
+    string contentType,
+    CancellationToken cancellationToken
+);
+
+Create a structured result model.
+
+Example fields:
+- FirstName
+- LastName
+- FatherName
+- DateOfBirth
+- MunicipalityOfBirth
+- JMBG
+- Address
+- MedicalCertificateNumber
+- MedicalCertificateDate
+- MedicalInstitution
+- TheoryCertificateNumber
+- TheoryCertificateDate
+- FirstAidCertificateNumber
+- FirstAidCertificateDate
+- DrivingCertificateNumber
+- DrivingCertificateDate
+
+Include:
+- Extraction confidence where supported
+- Missing fields
+- Uncertain fields
+- Source document references
+
+### Implementation strategy
+
+Implement the complete review and approval workflow.
+
+Start with a working local OCR provider where practical.
+
+Keep the OCR provider replaceable through dependency injection.
+
+Do not make the entire application depend on an external paid AI service.
+
+If a reliable extraction provider is unavailable, provide a manual extraction fallback and clearly identify which parts are not automated.
+
+Never simulate successful OCR by returning invented candidate data.
+
+### OCR security
+
+Treat uploaded documents as sensitive.
+
+Do not send documents to third-party AI services without explicit configuration and authorization.
+
+Never log extracted JMBG values or raw document contents.
+
+Use temporary file cleanup.
+
+Implement reasonable OCR timeouts and error handling.
+
+## 10. INSTRUCTOR MANAGEMENT
+
+Create a simple instructor module.
+
+Instructor fields:
+- Id
+- FirstName
+- LastName
+- Phone
+- Email
+- IsActive
+- Notes
+
+Features:
+- Add instructor
+- Edit instructor
+- Deactivate instructor
+- View assigned candidates
+
+### Candidate instructor assignment
+
+A candidate can have one or more instructor assignments.
+
+Support:
+- Primary instructor
+- Secondary instructor
+- Allocation percentage
+
+Example:
+
+Instructor A: 50%
+Instructor B: 50%
+
+Or:
+
+Instructor A: 100%
+
+Use an InstructorAssignment entity.
+
+Fields:
+- Id
+- CandidateId
+- InstructorId
+- AllocationPercentage
+- CreatedAt
+
+Validation:
+- Total active allocation cannot exceed 100%.
+- For completed assignments, require a valid total allocation according to the chosen workflow.
+- Prevent duplicate active assignments for the same instructor and candidate.
+
+The percentages represent responsibility allocation only.
+
+Do not automatically calculate instructor salaries or payouts.
+
+This application does not need payroll functionality.
+
+## 11. PAYMENT MANAGEMENT
+
+Payments belong inside the candidate profile.
+
+Each candidate has an agreed training price.
+
+Candidate financial fields:
+- AgreedPrice
+- CurrencyCode
+
+Default currency:
+BAM
+
+Support EUR if configured.
+
+Do not automatically combine different currencies without an explicit conversion mechanism.
+
+### Payment entity
+
+Fields:
+- Id
+- CandidateId
+- Amount
+- CurrencyCode
+- PaymentDate
+- PaymentMethod
+- Note
+- CreatedAt
+- CreatedBy
+
+Payment methods:
+- Gotovina
+- Bankovni transfer
+- Kartica
+- Ostalo
+
+### Candidate payment interface
+
+Display:
+
+Ukupna cijena obuke: 1.200 KM
+
+Uplaćeno: 600 KM
+
+Preostalo: 600 KM
+
+Payment history:
+
+Date | Amount | Method | Note
+
+Actions:
+- Dodaj uplatu
+- Uredi uplatu
+- Storniraj uplatu
+
+Use decimal types for money.
+
+Do not use floating-point numbers for financial calculations.
+
+Calculate remaining balance from the agreed price and valid payments.
+
+Avoid storing redundant financial totals unless necessary.
+
+Preserve payment history and audit changes.
+
+## 12. TRAINING INFORMATION
+
+Inside the candidate profile, create the "Obuka" tab.
+
+Display:
+- Enrollment date
+- Driving category
+- Primary instructor
+- Secondary instructor if assigned
+- Instructor allocation percentages
+- Candidate status
+- Training completion date
+- Notes
+
+Do not implement a complicated driving lesson scheduling system.
+
+Do not implement vehicle management.
+
+Do not implement attendance tracking.
+
+The goal is administrative simplicity.
+
+## 13. DATABASE DESIGN
+
+Use PostgreSQL with EF Core migrations.
+
+Suggested entities:
+
+- User
+- DrivingSchool
+- Candidate
+- Instructor
+- CandidateInstructorAssignment
+- CandidateDocument
+- DocumentType
+- CandidatePayment
+- RegisterBook
+- RegisterPage
+- RegisterEntry
+- AuditLog
+- ApplicationSetting
+
+Create appropriate relationships and indexes.
+
+Important constraints:
+
+- Register year must be unique per driving school.
+- Register page number must be unique per book.
+- Register row position must be unique per page.
+- Register serial numbers must be stable.
+- Register entries must reference valid candidates.
+- Prevent accidental duplicate active register entries for a candidate within the same book.
+- Payment amounts must be positive.
+- Instructor percentages must be valid.
+- Document metadata must reference existing candidates.
+
+Use proper PostgreSQL decimal precision for monetary fields.
+
+Use DateOnly for date-only values where appropriate.
+
+Use UTC timestamps for system events.
+
+Do not create unnecessary generic repositories.
+
+Use EF Core directly inside application services where appropriate.
+
+## 14. BACKEND ARCHITECTURE
+
+Use a maintainable layered structure.
+
+Suggested structure:
+
+backend/
+  DrivingSchool.API/
+    Controllers/
+    Middleware/
+    Extensions/
+    Program.cs
+
+  DrivingSchool.Application/
+    DTOs/
+    Interfaces/
+    Services/
+    Validators/
+
+  DrivingSchool.Domain/
+    Entities/
+    Enums/
+    Exceptions/
+
+  DrivingSchool.Infrastructure/
+    Data/
+    Configurations/
+    Migrations/
+    Storage/
+    OCR/
+    PDF/
+
+Avoid excessive abstraction.
+
+Use dependency injection.
+
+Use:
+- Global exception middleware
+- Consistent API responses
+- FluentValidation
+- Async database operations
+- Cancellation tokens
+- Structured logging
+- Centralized authorization
+
+Use DTOs rather than exposing EF entities directly.
+
+## 15. BACKEND API ENDPOINTS
+
+Implement REST endpoints.
+
+Authentication:
+
+POST /api/auth/login
+POST /api/auth/refresh
+POST /api/auth/logout
+GET /api/auth/me
+
+Dashboard:
+
+GET /api/dashboard/overview
+
+Candidates:
+
+GET /api/candidates
+GET /api/candidates/{id}
+POST /api/candidates
+PUT /api/candidates/{id}
+PATCH /api/candidates/{id}/status
+
+Documents:
+
+GET /api/candidates/{id}/documents
+POST /api/candidates/{id}/documents
+GET /api/documents/{id}/download
+GET /api/documents/{id}/preview
+PUT /api/documents/{id}
+DELETE /api/documents/{id}
+
+Payments:
+
+GET /api/candidates/{id}/payments
+POST /api/candidates/{id}/payments
+PUT /api/payments/{id}
+POST /api/payments/{id}/void
+
+Instructors:
+
+GET /api/instructors
+GET /api/instructors/{id}
+POST /api/instructors
+PUT /api/instructors/{id}
+PATCH /api/instructors/{id}/status
+
+Register books:
+
+GET /api/register-books
+GET /api/register-books/{id}
+POST /api/register-books
+GET /api/register-books/{id}/pages/{pageNumber}
+POST /api/register-books/{id}/entries
+PUT /api/register-entries/{id}
+POST /api/register-entries/{id}/void
+POST /api/register-books/{id}/archive
+GET /api/register-books/{id}/export/pdf
+
+OCR:
+
+POST /api/document-extraction/extract
+
+Settings:
+
+GET /api/settings
+PUT /api/settings
+
+Document types:
+
+GET /api/document-types
+POST /api/document-types
+PUT /api/document-types/{id}
+
+Use proper HTTP status codes.
+
+Validate ownership and permissions for every resource.
+
+## 16. FRONTEND ARCHITECTURE
+
+Suggested Angular structure:
+
+src/app/
+  core/
+    api/
+      dto/
+    auth/
+    guards/
+    interceptors/
+    services/
+
+  shared/
+    components/
+      modal/
+      confirm-dialog/
+      loading-spinner/
+      empty-state/
+      pagination/
+      file-upload/
+      document-preview/
+    utils/
+
+  layout/
+    main-layout/
+
+  features/
+    auth/
+      login/
+
+    dashboard/
+
+    register-books/
+      register-list/
+      register-detail/
+      register-table/
+      register-page/
+      register-archive/
+
+    candidates/
+      candidates-list/
+      candidate-detail/
+      candidate-form/
+      candidate-documents/
+      candidate-payments/
+      candidate-training/
+      candidate-import/
+
+    instructors/
+      instructors-list/
+      instructor-form/
+
+    settings/
+
+Use lazy-loaded routes.
+
+Use Angular Signals for component state.
+
+Use RxJS for HTTP operations.
+
+Avoid unnecessary global state libraries.
+
+Keep components small and reusable.
+
+## 17. RESPONSIVE DESIGN
+
+The application must be fully responsive.
+
+Desktop:
+- Sidebar navigation
+- Wide tables
+- Two-column forms where appropriate
+
+Tablet:
+- Compact sidebar
+- Adaptive tables
+- Responsive forms
+
+Mobile:
+- Collapsible navigation
+- Single-column forms
+- Large touch targets
+- Compact cards
+- Easy document uploads
+- Easy payment entry
+
+### Register book on mobile
+
+The official register table is too wide for a normal mobile screen.
+
+Do not shrink the entire table until the text becomes unreadable.
+
+Implement two display modes:
+
+Desktop:
+- Full register table
+
+Mobile:
+- Candidate row cards or a simplified list
+
+Provide an optional horizontal-scroll table view.
+
+The exported PDF must preserve the official table layout regardless of screen size.
+
+## 18. DESIGN REQUIREMENTS
+
+Create a clean, professional design.
+
+Visual direction:
+- White and light gray backgrounds
+- Dark text
+- One restrained accent color
+- Subtle borders
+- Rounded cards
+- Clear typography
+- Minimal shadows
+- Consistent spacing
+- Simple icons
+
+Avoid:
+- Excessive gradients
+- Heavy animations
+- Complicated dashboards
+- Decorative elements that do not improve usability
+
+The app should feel like a professional administrative system.
+
+## 19. STORAGE ARCHITECTURE
+
+Implement a storage abstraction.
+
+Interface:
+
+IFileStorageService
+
+Methods should support:
+- Upload
+- Download
+- Delete
+- File existence checks
+
+Initial implementation:
+
+LocalFileStorageService
+
+Store files in a private directory configured through environment variables.
+
+Example:
+
+/var/lib/driving-school/documents/
+
+Do not store documents inside the Angular dist folder or Nginx public root.
+
+Use generated unique file names.
+
+Keep original names only as metadata.
+
+Design the abstraction so S3-compatible object storage can be added later.
+
+## 20. SECURITY AND PRIVACY
+
+This application handles sensitive personal information.
+
+Implement:
+
+- HTTPS
+- Authentication
+- Role-based authorization
+- Secure password hashing
+- Secure refresh token cookies
+- CORS restrictions
+- File upload validation
+- Rate limiting on sensitive endpoints
+- Audit logs
+- Secure error handling
+- No secrets in source code
+- No personal data in application logs
+- Protection against unauthorized document downloads
+- CSRF protection for cookie-authenticated state-changing requests
+- Secure HTTP headers
+
+Do not expose uploaded documents directly through Nginx.
+
+Use least-privilege filesystem permissions.
+
+Provide configurable retention and backup policies.
+
+Do not implement automatic permanent deletion of official records without an explicit approved retention policy.
+
+## 21. BACKUP STRATEGY
+
+Prepare a backup strategy for:
+
+1. PostgreSQL database
+2. Candidate documents
+
+Backups must be:
+- Automated
+- Encrypted
+- Stored separately from the application server
+- Restorable
+
+Provide scripts and documentation for backup and restore.
+
+Include an example cron or systemd timer configuration.
+
+Do not assume a backup is reliable without testing restoration.
+
+## 22. DEPLOYMENT
+
+The application will be deployed to an existing Hetzner Ubuntu server.
+
+Other applications may already be hosted on the same server.
+
+Do not overwrite existing Nginx configurations or systemd services.
+
+Use a dedicated subdomain.
+
+Example:
+
+autoskola.example.com
+
+Deployment architecture:
+
+Browser
+   |
+   v
+Nginx HTTPS
+   |
+   +-- Angular static application
+   |
+   +-- /api -> ASP.NET Core backend
+                   |
+                   +-- PostgreSQL
+                   |
+                   +-- Private document storage
+
+Provide:
+- Production build instructions
+- Environment configuration examples
+- PostgreSQL setup instructions
+- Nginx configuration
+- systemd service file
+- SSL setup instructions
+- Migration instructions
+- Backup instructions
+- Deployment checklist
+
+Do not hardcode production domains, passwords, or database credentials.
+
+## 23. IMPORTANT BUSINESS RULES
+
+1. Every candidate has one primary profile.
+2. Documents belong to candidates.
+3. Payments belong to candidates.
+4. Instructor assignments belong to candidates.
+5. Register entries reference candidates.
+6. Register positions must remain stable.
+7. Archived register books must be protected from ordinary editing.
+8. OCR results require user confirmation.
+9. Register entries must not be silently renumbered.
+10. Historical financial changes must be auditable.
+11. Document access must be authorized.
+12. The application must remain simple.
+
+## 24. TESTING
+
+Create automated tests for critical business logic.
+
+Prioritize:
+
+- Authentication
+- Authorization
+- Candidate creation
+- Register position allocation
+- Register page capacity
+- Register numbering
+- Concurrent register entry creation
+- Register archiving
+- Preventing changes to archived books
+- Payment balance calculations
+- Instructor allocation validation
+- Document access authorization
+- OCR review workflow
+
+Include integration tests where appropriate.
+
+## 25. IMPLEMENTATION PROCESS
+
+Do not generate placeholder screens and claim the application is complete.
+
+Build working functionality.
+
+Work in phases.
+
+Phase 1:
+- Project setup
+- Database
+- Authentication
+- Layout
+- Dashboard
+
+Phase 2:
+- Candidate CRUD
+- Candidate details
+- Instructor CRUD
+- Instructor assignments
+
+Phase 3:
+- Register book creation
+- Register pages
+- Register entries
+- Stable numbering
+- Register archiving
+- Register PDF export
+
+Phase 4:
+- Document upload
+- Secure storage
+- Document preview
+- Document download
+- Document management
+
+Phase 5:
+- Payments
+- Payment history
+- Balance calculations
+
+Phase 6:
+- OCR abstraction
+- OCR implementation
+- Extraction review
+- Candidate creation from documents
+
+Phase 7:
+- Responsive improvements
+- Validation
+- Security review
+- Automated tests
+- Deployment documentation
+
+After each phase:
+- Ensure backend compiles.
+- Ensure frontend builds.
+- Run relevant tests.
+- Fix errors before proceeding.
+- Report what was implemented.
+- Report what remains incomplete.
+
+Do not silently skip features.
+
+## 26. ACCEPTANCE CRITERIA
+
+The project is complete only when:
+
+1. An administrator can log in.
+2. An administrator can create a candidate.
+3. A candidate can have multiple documents.
+4. Documents can be securely viewed and downloaded.
+5. A candidate can have one or two instructors.
+6. Instructor allocation percentages work correctly.
+7. Payments can be added and balances calculated.
+8. A register book can be created for a specific year.
+9. Register pages display the configured number of rows.
+10. Candidates can be added to register positions.
+11. Clicking a candidate in the register opens the candidate profile.
+12. Register numbering remains stable.
+13. Register books can be archived.
+14. Archived books are protected from ordinary modifications.
+15. Register pages can be exported to PDF.
+16. OCR-assisted candidate creation has a working review and approval flow.
+17. The interface works on mobile and desktop.
+18. Critical backend functionality has automated tests.
+19. The application can be deployed to Ubuntu with Nginx.
+20. The database and documents can be backed up and restored.
+
+## 27. FINAL INSTRUCTIONS
+
+Before coding:
+
+1. Inspect the existing repository.
+2. Determine whether it is empty or already contains code.
+3. Preserve existing useful code.
+4. Create a concise implementation plan.
+5. Identify ambiguities that affect legal recordkeeping or data integrity.
+6. Ask only essential questions that cannot be resolved safely.
+7. Begin implementation after the plan.
+
+Prefer a simple working implementation over unnecessary architectural complexity.
+
+Do not introduce features outside the defined scope.
+
+Do not use mock data as a substitute for working backend functionality.
+
+Do not fabricate OCR results.
+
+Do not compromise data integrity to simplify the implementation.
+
+Build a reliable, clean, production-oriented driving school administration system.
+
+
+
+# IMPORTANT PROJECT REQUIREMENTS UPDATE
+
+The previous specification must be adjusted according to the following requirements.
+
+This is a PRIVATE internal application used exclusively by one owner to manage their own driving schools.
+
+It is NOT a SaaS product.
+
+It is NOT intended for public registration or use by external customers.
+
+The owner may operate multiple driving schools, and all must be manageable from the same application.
+
+## 1. SIMPLIFY AUTHENTICATION
+
+Implement only one administrator account.
+
+The administrator is the application owner.
+
+Requirements:
+- Email and password login
+- Secure password hashing
+- JWT access token
+- Refresh token in HttpOnly cookie
+- Logout
+- Protected API endpoints
+- Protected Angular routes
+
+Do NOT implement:
+- Public registration
+- User management
+- Role management
+- Permission management UI
+- Invitations
+- Subscription management
+- Multi-user collaboration
+
+The administrator account should be created during initial setup using environment variables.
+
+The owner has full access to all driving schools and all application features.
+
+## 2. MULTIPLE DRIVING SCHOOLS
+
+The application must support multiple driving schools owned by the same administrator.
+
+Create a DrivingSchool entity.
+
+Fields:
+- Id
+- Name
+- Address
+- City
+- Phone
+- Email
+- IsActive
+- CreatedAt
+
+The administrator can:
+- Create a driving school
+- Edit a driving school
+- Deactivate a driving school
+- Switch between driving schools
+
+Do not permanently delete a driving school that has candidates or register books.
+
+## 3. GLOBAL DRIVING SCHOOL SELECTOR
+
+Implement a global driving school selector in the application header.
+
+Example:
+
+Autoškola: [ Autoškola ZNAK Sarajevo ▼ ]
+
+Options:
+- Individual driving schools
+- Sve autoškole
+
+The selected driving school must filter:
+- Dashboard statistics
+- Candidates
+- Register books
+- Instructors
+- Payments and financial summaries
+
+The "Sve autoškole" option should show combined information.
+
+When creating a new candidate or register book while "Sve autoškole" is selected, require the administrator to explicitly select a driving school.
+
+Persist the selected school in frontend state and optionally localStorage.
+
+Do not use localStorage for authentication tokens.
+
+Backend APIs must receive or derive the selected DrivingSchoolId.
+
+Never rely exclusively on frontend filtering.
+
+## 4. CANDIDATE OWNERSHIP
+
+Every candidate belongs to one driving school.
+
+Add:
+
+Candidate.DrivingSchoolId
+
+A candidate must have a valid driving school.
+
+Display the driving school name on the candidate profile.
+
+Allow filtering candidates by driving school.
+
+If transferring a candidate between driving schools is ever needed, implement it as a separate audited workflow.
+
+Do not silently change the school of a candidate who already has official register entries.
+
+## 5. REGISTER BOOK OWNERSHIP
+
+Every register book belongs to one driving school.
+
+Add:
+
+RegisterBook.DrivingSchoolId
+
+Each driving school can have its own register book for each year.
+
+Example:
+
+Autoškola ZNAK Sarajevo:
+- Matična knjiga 2026
+- Matična knjiga 2027
+
+Autoškola 2:
+- Matična knjiga 2026
+- Matična knjiga 2027
+
+Register books must never mix candidates from different driving schools.
+
+When adding a candidate to a register book, validate on the backend that:
+
+Candidate.DrivingSchoolId == RegisterBook.DrivingSchoolId
+
+Archived register books remain accessible under their original driving school.
+
+## 6. INSTRUCTORS ACROSS DRIVING SCHOOLS
+
+An instructor may work with more than one driving school.
+
+Create a many-to-many relationship between instructors and driving schools.
+
+Use:
+
+DrivingSchoolInstructor
+
+Fields:
+- Id
+- DrivingSchoolId
+- InstructorId
+
+The administrator can assign instructors to one or more driving schools.
+
+When assigning an instructor to a candidate, show instructors associated with that candidate's driving school.
+
+A candidate may have:
+- One instructor with 100% allocation
+- Two instructors with a 50/50 allocation
+- Other valid allocation percentages totaling 100%
+
+Keep this functionality simple.
+
+Do not implement instructor payroll.
+
+## 7. SETTINGS
+
+The Settings page should contain:
+
+1. Driving school management
+2. Administrator account settings
+3. Document type configuration
+4. Basic application settings
+
+Do not implement a complicated administration panel.
+
+## 8. SIMPLICITY IS THE HIGHEST PRIORITY
+
+The application should feel like a small, fast, professional internal tool.
+
+Avoid unnecessary architecture.
+
+Do not implement:
+- SaaS tenancy infrastructure
+- Billing subscriptions
+- Public user registration
+- Multiple user roles
+- Enterprise administration
+- Complicated reporting
+- Vehicle fleet management
+- Lesson scheduling
+- Instructor payroll
+- Notifications infrastructure
+- Messaging systems
+
+Keep the original core functionality:
+
+- Electronic register books
+- Candidates
+- Scanned documents
+- OCR-assisted candidate creation
+- Payments
+- Instructor assignments
+- Register archiving
+- PDF export
+- Responsive interface
+
+## 9. SECURITY
+
+Although this application is private, it will be accessible through a subdomain on a Hetzner server.
+
+Therefore, maintain:
+- HTTPS
+- Secure authentication
+- Protected document storage
+- API authorization
+- Secure file uploads
+- Database backups
+- Document backups
+- Audit logs for important changes
+
+Private usage does not mean security can be ignored.
+
+## 10. FINAL OBJECTIVE
+
+Build the simplest possible application that allows one administrator to manage multiple driving schools efficiently.
+
+The main workflow should be:
+
+Select driving school
+→ Add candidate
+→ Upload documents
+→ Review extracted information
+→ Save candidate
+→ Add candidate to electronic register book
+→ Assign instructor
+→ Track payments
+→ Archive completed register books
+
+All functionality must work across desktop and mobile devices.
+
+Prioritize simplicity, reliability, and data integrity over unnecessary features.
+
+
+You have example MatičnaKnjigaExample.jpg in this folder and all of this need to be in Bosnian language

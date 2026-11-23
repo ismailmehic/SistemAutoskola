@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/.angular/
+.cache/
+.private/
+.env
+.env.*
+!.env.example
+publish/
+release.tar.gz
+*.pem
+*.key
+*.pfx
+*.dump
+*.user

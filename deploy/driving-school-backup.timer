@@ -1,0 +1,10 @@
+[Unit]
+Description=Dnevni backup sistema autoskola
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 Europe/Sarajevo
+RandomizedDelaySec=10m
+Persistent=true
+
+[Install]
+WantedBy=timers.target
