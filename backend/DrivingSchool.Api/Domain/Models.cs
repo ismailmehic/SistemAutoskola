@@ -28,6 +28,7 @@ public sealed class Candidate
     public int DrivingSchoolId { get; set; }
     public School School { get; set; } = null!;
     public CandidateInput Data { get; set; } = null!;
+    public string? DocumentFolder { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
@@ -111,6 +112,7 @@ public sealed class CandidateDocument
     public int? CandidateId { get; set; }
     public int DocumentTypeId { get; set; }
     public string OriginalFileName { get; set; } = "";
+    public Candidate? Candidate { get; set; }
     public Guid StorageKey { get; set; }
     public string ContentType { get; set; } = "";
     public long FileSize { get; set; }

@@ -89,6 +89,7 @@ if (maintenance)
     await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<SchoolDb>();
     await db.Database.MigrateAsync();
+    await new DocumentOrganizer(db, scope.ServiceProvider.GetRequiredService<IFileStorageService>()).Organize(default);
     await scope.ServiceProvider.GetRequiredService<AuthService>().Seed(default);
     return;
 }

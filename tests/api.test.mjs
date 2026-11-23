@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {inflateRawSync} from 'node:zlib';
+import {readdir, readFile} from 'node:fs/promises';
+import {join} from 'node:path';
 
 const {TEST_API_URL: base, TEST_ADMIN_EMAIL: email, TEST_ADMIN_PASSWORD: password} = process.env;
 const seed = Date.now().toString(36);
@@ -130,6 +132,34 @@ test('Tok vlasnika kroz API i PostgreSQL', async t => {
     if(size>0)assert.deepEqual(inflateRawSync(zip.subarray(30+nameLength+extraLength,30+nameLength+extraLength+size)),png);
     await request('/documents/'+documentId,204,{method:'DELETE'});
     await get('/documents/'+documentId+'/download',404);
+  });
+
+  await t.test('Odvojene mape za isto ime, OCR dokumenti i nepromjenjiva putanja', async t => {
+    const storage = process.env.Storage__Directory;
+    if(!storage) { t.skip('Test traži putanju testne pohrane.'); return; }
+    const root=join(storage,'Kandidati');
+    const attached=await readdir(join(root,'EnaCovic-'+third.id));
+    assert.ok(attached.some(name=>name.endsWith('-scan.png')));
+    assert.ok(attached.some(name=>name.endsWith('-zamjena.png')));
+
+    const sameName=candidate(school.id,'Ismail');
+    const [a,b]=[await post('/candidates',{candidate:sameName},201),await post('/candidates',{candidate:sameName},201)];
+    const [firstDoc]=await post('/candidates/'+a.id+'/documents',upload('isti.png'));
+    const [secondDoc]=await post('/candidates/'+b.id+'/documents',upload('isti.png'));
+    assert.notEqual(firstDoc.id,secondDoc.id);
+    await put('/candidates/'+a.id,{candidate:{...sameName,firstName:'Edin'}});
+    const pdf=await get('/register-books/'+book.id+'/export/pdf?page=1');
+    await post('/candidates/'+a.id+'/documents',upload('uputstvo.pdf',pdf,'application/pdf'));
+
+    const aFolder=join(root,'IsmailCovic-'+a.id);
+    const bFolder=join(root,'IsmailCovic-'+b.id);
+    const aFiles=await readdir(aFolder);
+    const bFiles=await readdir(bFolder);
+    assert.equal(aFiles.length,2);
+    assert.equal(bFiles.length,1);
+    assert.deepEqual(await readFile(join(aFolder,aFiles.find(name=>name.endsWith('-uputstvo.pdf')))),pdf);
+    assert.deepEqual(await readFile(join(bFolder,bFiles[0])),png);
+    assert.deepEqual(await get('/documents/'+firstDoc.id+'/download'),png);
   });
 
   await t.test('Plaćanje, precizan saldo, izmjena i storno', async () => {

@@ -17,7 +17,7 @@ namespace DrivingSchool.Api.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.28")
+                .HasAnnotation("ProductVersion", "8.0.34")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -94,6 +94,10 @@ namespace DrivingSchool.Api.Data.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DocumentFolder")
+                        .HasMaxLength(65)
+                        .HasColumnType("character varying(65)");
 
                     b.Property<int>("DrivingSchoolId")
                         .HasColumnType("integer");
@@ -586,7 +590,7 @@ namespace DrivingSchool.Api.Data.Migrations
 
             modelBuilder.Entity("DrivingSchool.CandidateDocument", b =>
                 {
-                    b.HasOne("DrivingSchool.Candidate", null)
+                    b.HasOne("DrivingSchool.Candidate", "Candidate")
                         .WithMany()
                         .HasForeignKey("CandidateId");
 
@@ -595,6 +599,8 @@ namespace DrivingSchool.Api.Data.Migrations
                         .HasForeignKey("DocumentTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Candidate");
                 });
 
             modelBuilder.Entity("DrivingSchool.Instructor", b =>

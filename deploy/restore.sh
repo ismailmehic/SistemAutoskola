@@ -19,10 +19,13 @@ pg_restore --exit-on-error --single-transaction --no-owner --no-privileges \
 psql -X -v ON_ERROR_STOP=1 --dbname="$target_db" -Atc \
     "SELECT replace(\"StorageKey\"::text, '-', '') FROM \"Documents\" WHERE \"CandidateId\" IS NOT NULL
      UNION SELECT replace(\"Changes\"::jsonb->'StorageKey'->>'Previous', '-', '') FROM \"Audits\"
-     WHERE \"Resource\" = 'document' AND \"Action\" = 'replace'" |
-    while IFS= read -r key; do
-        [[ "$key" =~ ^[a-f0-9]{32}$ && -f "$stage/documents/$key" ]] || { echo 'Nedostaje datoteka iz baze.' >&2; exit 1; }
-    done
+     WHERE \"Resource\" = 'document' AND \"Action\" = 'replace'" > "$stage/required-keys"
+# Both the original flat layout and the named candidate layout preserve the immutable storage key.
+find "$stage/documents" -type f -printf '%f\n' |
+    cut -d- -f1 | LC_ALL=C sort -u > "$stage/restored-keys"
+LC_ALL=C sort -u "$stage/required-keys" -o "$stage/required-keys"
+LC_ALL=C comm -23 "$stage/required-keys" "$stage/restored-keys" > "$stage/missing-keys"
+[[ ! -s "$stage/missing-keys" ]] || { echo 'Nedostaje datoteka iz baze.' >&2; exit 1; }
 # Staging rows are short-lived and can expire while an online backup is copied.
 psql -X -v ON_ERROR_STOP=1 --dbname="$target_db" -c 'DELETE FROM "Documents" WHERE "CandidateId" IS NULL; DELETE FROM "Sessions";'
 mkdir -m 0700 -- "$target_dir"

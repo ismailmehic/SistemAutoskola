@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DrivingSchool;
 public record CandidateSave(CandidateInput Candidate, Guid[]? UploadIds);
-public sealed class CandidateService(SchoolDb db, IValidator<CandidateInput> validator)
+public sealed class CandidateService(SchoolDb db, IValidator<CandidateInput> validator, IFileStorageService files, ILogger<CandidateService> logger)
 {
     public async Task<Candidate> Get(int id, CancellationToken ct) =>
         Rules.Found(await db.Candidates.Include(x => x.School).SingleOrDefaultAsync(x => x.Id == id, ct));
@@ -26,11 +26,14 @@ public sealed class CandidateService(SchoolDb db, IValidator<CandidateInput> val
         item.Data = data with { FirstName = data.FirstName.Trim(), LastName = data.LastName.Trim(),
             Email = string.IsNullOrWhiteSpace(data.Email) ? null : data.Email.Trim(), Jmbg = string.IsNullOrWhiteSpace(data.Jmbg) ? null : data.Jmbg.Trim() };
         item.UpdatedAt = DateTime.UtcNow;
+        item.DocumentFolder ??= DocumentFile.FolderSlug(item.Data);
         if (id is null) db.Add(item);
         await db.SaveChangesAsync(ct);
         foreach (var document in documents)
         {
+            document.Candidate = item;
             document.CandidateId = item.Id;
+            await files.CopyFromFlatStorage(DocumentFile.For(document), ct);
             db.Record("document", document.Id, "attach", next: new { CandidateId = item.Id });
         }
         db.Record("candidate", item.Id, id is null ? "create" : "update",
@@ -38,6 +41,15 @@ public sealed class CandidateService(SchoolDb db, IValidator<CandidateInput> val
             new { data.Status, data.DrivingSchoolId, data.AgreedPrice, data.CurrencyCode });
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
+        foreach (var document in documents)
+        {
+            // The attached copy is durable now. A cleanup failure must not turn a committed enrollment into an error.
+            try { files.Delete(new(document.StorageKey)); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning("Višak OCR datoteke nije očišćen nakon upisa dokumenta {DocumentId}.", document.Id);
+            }
+        }
         return item.Id;
     }
 

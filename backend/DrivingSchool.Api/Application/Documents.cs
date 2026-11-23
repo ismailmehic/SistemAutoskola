@@ -15,23 +15,24 @@ public sealed class DocumentService(SchoolDb db, IFileStorageService storage, IC
     public async Task<List<CandidateDocument>> Upload(int? candidateId, IFormCollection form, CancellationToken ct)
     {
         Rules.Require(form.Files.Count is >= 1 and <= 5, "Odaberite od jedne do pet datoteka.");
-        if (candidateId is int id) Rules.Require(await db.Candidates.AnyAsync(x => x.Id == id, ct), "Kandidat ne postoji.", 404);
+        var candidate = candidateId is int id ? Rules.Found(await db.Candidates.FirstOrDefaultAsync(x => x.Id == id, ct)) : null;
         var type = await Type(form, ct);
         var rows = new List<CandidateDocument>();
         foreach (var file in form.Files)
         {
-            var row = new CandidateDocument { CandidateId = candidateId, DocumentTypeId = type };
+            var row = new CandidateDocument { CandidateId = candidateId, Candidate = candidate, DocumentTypeId = type };
             await Fill(row, file, form, ct);
             rows.Add(row);
         }
-        var stored = new List<Guid>();
+        var stored = new List<DocumentFile>();
         try
         {
             for (var i = 0; i < rows.Count; i++)
             {
                 await using var input = form.Files[i].OpenReadStream();
-                await storage.Write(rows[i].StorageKey, input, ct);
-                stored.Add(rows[i].StorageKey);
+                var location = DocumentFile.For(rows[i]);
+                await storage.Write(location, input, ct);
+                stored.Add(location);
             }
         }
         catch
@@ -54,7 +55,7 @@ public sealed class DocumentService(SchoolDb db, IFileStorageService storage, IC
         row.DocumentTypeId = await Type(form, ct);
         await Fill(row, form.Files[0], form, ct);
         await using var input = form.Files[0].OpenReadStream();
-        await storage.Write(row.StorageKey, input, ct);
+        await storage.Write(DocumentFile.For(row), input, ct);
         db.Record("document", id, "replace", before, new { row.StorageKey, row.DocumentTypeId, row.DocumentDate, row.ExpirationDate, row.Notes });
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
@@ -75,17 +76,17 @@ public sealed class DocumentService(SchoolDb db, IFileStorageService storage, IC
     public async Task<IResult> Read(Guid id, bool download, CancellationToken ct)
     {
         var row = await Find(id, ct);
-        Rules.Require(storage.Exists(row.StorageKey), "Datoteka nije dostupna.", 404);
+        Rules.Require(storage.Exists(DocumentFile.For(row)), "Datoteka nije dostupna.", 404);
         db.Record("document", id, download ? "download" : "preview");
         await db.SaveChangesAsync(ct);
-        return Results.File(storage.Open(row.StorageKey), row.ContentType, download ? row.OriginalFileName : null);
+        return Results.File(storage.Open(DocumentFile.For(row)), row.ContentType, download ? row.OriginalFileName : null);
     }
 
     public async Task<IResult> Zip(int id, CancellationToken ct)
     {
         Rules.Require(await db.Candidates.AnyAsync(x => x.Id == id, ct), "Kandidat ne postoji.", 404);
-        var rows = await db.Documents.Where(x => x.CandidateId == id && x.RemovedAt == null).ToListAsync(ct);
-        Rules.Require(rows.All(x => storage.Exists(x.StorageKey)), "Jedna ili više datoteka nisu dostupne.", 404);
+        var rows = await db.Documents.Include(x => x.Candidate).Where(x => x.CandidateId == id && x.RemovedAt == null).ToListAsync(ct);
+        Rules.Require(rows.All(x => storage.Exists(DocumentFile.For(x))), "Jedna ili više datoteka nisu dostupne.", 404);
         foreach (var row in rows) db.Record("document", row.Id, "download-zip");
         await db.SaveChangesAsync(ct);
         var path = Path.Combine(Path.GetTempPath(), $"autoskola-{Guid.NewGuid():N}.zip");
@@ -102,7 +103,7 @@ public sealed class DocumentService(SchoolDb db, IFileStorageService storage, IC
                 {
                     var member = zip.CreateEntry($"{++i:000}-{row.OriginalFileName}", CompressionLevel.Fastest);
                     await using var dst = member.Open();
-                    await using var src = storage.Open(row.StorageKey);
+                    await using var src = storage.Open(DocumentFile.For(row));
                     await src.CopyToAsync(dst, ct);
                 }
             }
@@ -116,7 +117,7 @@ public sealed class DocumentService(SchoolDb db, IFileStorageService storage, IC
         }
     }
 
-    private async Task<CandidateDocument> Find(Guid id, CancellationToken ct) => Rules.Found(await db.Documents
+    private async Task<CandidateDocument> Find(Guid id, CancellationToken ct) => Rules.Found(await db.Documents.Include(x => x.Candidate)
         .SingleOrDefaultAsync(x => x.Id == id && x.CandidateId != null && x.RemovedAt == null, ct));
 
     private async Task<int> Type(IFormCollection form, CancellationToken ct)
@@ -184,7 +185,7 @@ public sealed class TemporaryDocumentCleanup(IServiceScopeFactory scopes, IFileS
                     .Select(x => new { x.Id, x.StorageKey }).ToListAsync(stop);
                 foreach (var row in expired)
                     if (await db.Documents.Where(x => x.Id == row.Id && x.CandidateId == null).ExecuteDeleteAsync(stop) == 1)
-                        files.Delete(row.StorageKey);
+                        files.Delete(new(row.StorageKey));
             }
             catch (Exception ex) when (!stop.IsCancellationRequested)
             {
@@ -220,7 +221,7 @@ public static partial class Endpoints
             var results = new List<object>();
             foreach (var row in staged)
             {
-                await using var stream = files.Open(row.StorageKey);
+                await using var stream = files.Open(new(row.StorageKey));
                 results.Add(new { Document = DocumentService.Dto(row), Extraction = await extraction.ExtractAsync(stream, row.ContentType, ct) });
             }
             return Results.Ok(results);

@@ -34,6 +34,7 @@ public sealed class SchoolDb(DbContextOptions<SchoolDb> options) : DbContext(opt
             v.HasIndex(x => x.EnrollmentDate);
         });
         m.Entity<Candidate>().Navigation(x => x.Data).IsRequired();
+        m.Entity<Candidate>().Property(x => x.DocumentFolder).HasMaxLength(65);
         m.Entity<Candidate>().ToTable(t => t.HasCheckConstraint("CK_Candidate_Price", "\"Data_AgreedPrice\" >= 0"));
         m.Entity<Candidate>().HasIndex(x => x.DrivingSchoolId);
         m.Entity<Instructor>().OwnsOne(x => x.Data, v => v.ToJson());
@@ -59,7 +60,7 @@ public sealed class SchoolDb(DbContextOptions<SchoolDb> options) : DbContext(opt
         m.Entity<RegisterEntry>().HasIndex(x => new { x.BookId, x.CandidateId }).IsUnique().HasFilter("\"VoidedAt\" IS NULL");
         m.Entity<RegisterEntry>().OwnsOne(x => x.Identity, v => v.ToJson());
         m.Entity<RegisterEntry>().OwnsOne(x => x.Fields, v => v.ToJson());
-        m.Entity<CandidateDocument>().HasOne<Candidate>().WithMany().HasForeignKey(x => x.CandidateId);
+        m.Entity<CandidateDocument>().HasOne(x => x.Candidate).WithMany().HasForeignKey(x => x.CandidateId);
         m.Entity<CandidateDocument>().HasIndex(x => x.UploadedAt).HasFilter("\"CandidateId\" IS NULL");
         m.Entity<CandidateDocument>().HasOne<DocumentType>().WithMany().HasForeignKey(x => x.DocumentTypeId);
         m.Entity<DocumentType>().HasIndex(x => x.Name).IsUnique();

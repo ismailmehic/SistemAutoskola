@@ -54,6 +54,10 @@ Swagger je dostupan u razvojnom režimu na `http://localhost:5080/swagger`. Klij
 
 U listi **Kandidati** početni filteri su **Aktivan** i tekuća godina po vremenu u Sarajevu. Za pregled starijih upisa promijenite ili očistite godinu i kliknite **Pretraži**. Arhiviranje knjige, deaktiviranje i uklanjanje dokumenata potvrđuju se u modalu unutar aplikacije.
 
+## Dokumenti kandidata
+
+PDF-ovi i slike čuvaju se pod `Kandidati/ImePrezime-ID/` u privatnoj pohrani. ID razlikuje kandidate s istim imenom, a ispravka imena u profilu ostavlja fizičku mapu stabilnom. Aplikacija prikazuje izvorne nazive datoteka u kartici **Dokumenti**. Udaljeni Restic backup čuva strukturu u šifrovanom snapshotu, a pregled izvornih datoteka moguć je nakon vraćanja.
+
 ## Matična knjiga
 
 - Svaka autoškola ima odvojenu knjigu za svaku godinu. Više škola mogu imati knjigu za istu godinu. Upis je moguć samo za kandidata iz autoškole kojoj knjiga pripada.
