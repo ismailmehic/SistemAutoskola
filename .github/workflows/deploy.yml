@@ -50,6 +50,7 @@ jobs:
         run: |
           npm ci
           npm run build
+          node --test ../tests/frontend-build.test.mjs
 
       - name: Izgradi API
         run: dotnet publish backend/DrivingSchool.Api -c Release -o "$RUNNER_TEMP/release/api"

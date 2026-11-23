@@ -7,7 +7,7 @@
         {"glob":"pdf.worker.min.mjs","input":"node_modules/pdfjs-dist/build","output":"pdfjs"},
         {"glob":"**/*","input":"node_modules/pdfjs-dist/cmaps","output":"pdfjs/cmaps"},
         {"glob":"**/*","input":"node_modules/pdfjs-dist/standard_fonts","output":"pdfjs/standard_fonts"}
-      ],"outputPath":"dist/autoskola"}},
+      ],"outputPath":"dist/autoskola","optimization":{"styles":{"inlineCritical":false}}}},
       "serve":{"builder":"@angular/build:dev-server","options":{"buildTarget":"autoskola:build"}}
     }
   }}
