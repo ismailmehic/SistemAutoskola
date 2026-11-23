@@ -43,33 +43,27 @@ API sluša samo na lokalnoj adresi. Ako koristite drugi lokalni port, uskladite 
 
 ## Automatska objava iz GitHuba
 
-Povežite ovaj direktorij s praznim privatnim GitHub repozitorijem za prvu objavu. U PowerShellu iz korijena projekta, nakon prijave u GitHub kroz Git Credential Manager, postavite stvarni URL i pošaljite granu `main`.
+Povežite direktorij s GitHub repozitorijem i pošaljite granu `main`.
 
 ```powershell
 git remote add origin https://github.com/VAŠ_NALOG/VAŠ_REPOZITORIJ.git
 git push -u origin main
 ```
 
-Workflow gradi Angular i .NET API i pokreće integracione testove s posebnom PostgreSQL bazom. Push na `main` objavljuje uspješno testiranu verziju kad je `DEPLOY_ENABLED` postavljen na `true`.
+GitHub Actions gradi Angular i .NET, provjerava aplikaciju s posebnom PostgreSQL bazom i objavljuje paket s kontrolnom sumom za uspješan `main` commit. Hetzner provjerava granu otprilike svakih 75 sekundi i instalira paket kad je dostupan. Ovaj način koristi čitanje javnog GitHub repozitorija. Ako promijenite vidljivost repozitorija u privatnu, preuzimanje treba podesiti s GitHub pristupom samo za čitanje.
 
-1. Na Hetzneru kreirajte poseban SSH nalog `driving-school-deploy` s ljuskom `/bin/sh` i njegov direktorij `.ssh` (prava `0700`). Za GitHub Actions generišite zaseban Ed25519 ključ. Javni ključ dodajte u `authorized_keys` (prava `0600`) u obliku ispod. SSH nalog koristite samo za objave.
-2. Dodajte sudo pravilo kroz `sudo visudo -f /etc/sudoers.d/driving-school-release`. Pravilo ispod dopušta izvršavanje instaliranog skripta bez proizvoljnih argumenata.
-3. U postavkama repozitorija pod **Settings → Secrets and variables → Actions** dodajte varijable `DEPLOY_HOST` (SSH host), `DEPLOY_PORT` (opcionalno, zadano `22`) i `DEPLOY_ENABLED` (`true`). Pod **Secrets** postavite `DEPLOY_SSH_KEY` (privatni ključ za objave) i `DEPLOY_KNOWN_HOSTS` (redak iz `known_hosts` s ključem hosta potvrđenim kroz Hetzner konzolu). Za port koji nije 22 koristi se oblik `[host]:port`. Ključ za objave i produkcijske podatke za prijavu čuvajte izvan repozitorija.
-4. Pošaljite izmjenu na `main` ili pokrenite **Test i objava** iz kartice Actions. Nakon uspjeha otvorite HTTPS poddomenu i provjerite prijavu.
+Na serveru iz direktorija `deploy` instalirajte mehanizam automatske objave:
 
-Red u `authorized_keys`:
-
-```text
-restrict,command="/usr/bin/sudo -n /usr/local/sbin/driving-school-release" ssh-ed25519 JAVNI_KLJUČ
+```bash
+sudo install -o root -g root -m 0755 update-from-github.sh /usr/local/sbin/driving-school-update
+sudo install -m 0644 driving-school-update.service driving-school-update.timer /etc/systemd/system/
+printf '%s\n' 'VAŠ_NALOG/VAŠ_REPOZITORIJ' | sudo tee /etc/driving-school/github-repository
+sudo systemctl daemon-reload
+sudo systemctl enable --now driving-school-update.timer
+sudo systemctl start driving-school-update.service
 ```
 
-Pravilo u sudoers:
-
-```text
-driving-school-deploy ALL=(root) NOPASSWD: /usr/local/sbin/driving-school-release ""
-```
-
-Objava pripremi paket, pokrene konfigurirani backup servis, primijeni migracije, prebaci aktivnu verziju i provjeri API. Ako API ne prođe provjeru, skript vraća prethodnu verziju aplikacije. Migracije baze ostaju primijenjene, pa promjene sheme pripremajte tako da prethodna verzija aplikacije može privremeno raditi s njima. [GitHub dokumentacija za Actions tajne](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
+Repozitorij dobija build i kontrolnu sumu. Produkcijska baza, dokumenti i pristupni ključevi ostaju izvan repozitorija. Objavni skript pokreće konfigurisani backup servis, primjenjuje migracije, prebaci aktivnu verziju i provjerava API. Ako API ne prođe provjeru, skript vraća prethodnu verziju aplikacije. Migracije baze ostaju primijenjene, pa promjene sheme pripremajte tako da prethodna verzija aplikacije može privremeno raditi s njima. [GitHub dokumentacija za objave](https://cli.github.com/manual/gh_release_create).
 
 ## Šifrovana rezervna kopija
 

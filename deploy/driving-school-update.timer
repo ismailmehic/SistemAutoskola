@@ -1,0 +1,10 @@
+[Unit]
+Description=Redovna provjera novih GitHub verzija sistema autoskola
+
+[Timer]
+OnBootSec=1min
+OnUnitInactiveSec=75s
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target

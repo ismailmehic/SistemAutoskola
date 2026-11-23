@@ -1,0 +1,10 @@
+[Unit]
+Description=Provjera i objava provjerene verzije sistema autoskola
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+PrivateTmp=true
+TimeoutStartSec=10min
+ExecStart=/usr/local/sbin/driving-school-update

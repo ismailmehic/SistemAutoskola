@@ -80,24 +80,46 @@ jobs:
           done
           node --test tests/api.test.mjs
 
-      - name: Objavi na Hetzneru
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true'
-        env:
-          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
-          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+      - name: Pripremi provjereni paket
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: |
-          test -n "$DEPLOY_HOST" && test -n "$DEPLOY_SSH_KEY" && test -n "$DEPLOY_KNOWN_HOSTS"
-          umask 077
-          ssh_dir="$(mktemp -d "$RUNNER_TEMP/deploy-ssh.XXXXXX")"
-          trap 'rm -rf -- "$ssh_dir"' EXIT
-          printf '%s\n' "$DEPLOY_SSH_KEY" > "$ssh_dir/key"
-          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
           cp -r frontend/dist/autoskola/browser "$RUNNER_TEMP/release/web"
           tar -C "$RUNNER_TEMP/release" -czf "$RUNNER_TEMP/release.tar.gz" api web
-          # The dedicated server key forces the release command and accepts the revision plus archive on stdin.
-          { printf '%s\n' "$GITHUB_SHA"; cat "$RUNNER_TEMP/release.tar.gz"; } |
-            ssh -T -i "$ssh_dir/key" -p "$DEPLOY_PORT" -o BatchMode=yes -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$ssh_dir/known_hosts" \
-              -o ConnectTimeout=15 -- "driving-school-deploy@$DEPLOY_HOST"
+          sha256sum "$RUNNER_TEMP/release.tar.gz" | cut -d ' ' -f 1 > "$RUNNER_TEMP/release.sha256"
+      - uses: actions/upload-artifact@v7
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          name: tested-release
+          path: |
+            ${{ runner.temp }}/release.tar.gz
+            ${{ runner.temp }}/release.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+  publish-release:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: test-and-deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: tested-release
+      - name: Objavi paket s kontrolnom sumom
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="build-$GITHUB_SHA"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft -q '.isDraft == false' 2>/dev/null | grep -Fxq true; then
+            exit 0
+          fi
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft -q '.isDraft' 2>/dev/null | grep -Fxq true; then
+            gh release upload "$tag" release.tar.gz release.sha256 --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$tag" --draft=false --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" release.tar.gz release.sha256 --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --title "Build ${GITHUB_SHA:0:12}" --notes "Automatski provjeren Angular i ASP.NET Core paket."
+          fi
