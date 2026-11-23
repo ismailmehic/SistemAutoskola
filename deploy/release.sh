@@ -49,7 +49,7 @@ fi
 if [[ -n "$previous" ]]; then systemctl stop driving-school.service; fi
 if ! systemd-run --quiet --wait --collect -p User=driving-school -p Group=driving-school \
     -p EnvironmentFile=/etc/driving-school/app.env -p WorkingDirectory="$release/api" \
-    /usr/bin/dotnet "$release/api/DrivingSchool.Api.dll" --migrate; then
+    "$root/runtime/dotnet" "$release/api/DrivingSchool.Api.dll" --migrate; then
     if [[ -n "$previous" ]]; then systemctl start driving-school.service; fi
     echo 'Migracija nije uspjela.' >&2
     exit 1

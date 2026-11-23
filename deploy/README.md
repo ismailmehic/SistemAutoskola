@@ -7,7 +7,7 @@ dotnet publish backend/DrivingSchool.Api -c Release -o publish/api
 (cd frontend && npm ci && npm run build)
 ```
 
-Na serveru pripremite ASP.NET Core Runtime 8.0.34, Nginx, PostgreSQL, Certbot, Restic i OCR alate iz glavnog uputstva. Aplikacija cilja .NET 8 prema specifikaciji. Microsoft je završio podršku za .NET 8 10. novembra 2026. [Microsoftov pregled verzija](https://dotnet.microsoft.com/en-us/download/dotnet). Klijent je u `frontend/dist/autoskola/browser`. Svaka objava ima privatni direktorij pod `/opt/driving-school/releases` s izlazima `api/` i `web/`. Nginx i systemd koriste simboličku vezu `/opt/driving-school/current` koja pokazuje na aktivnu verziju.
+Na serveru instalirajte ASP.NET Core Runtime 8.0.34 u `/opt/driving-school/runtime`, gdje i servis i objavni skript traže `dotnet`. Za Ubuntu x64 koristite arhivu za Linux x64 koju Microsoft objavljuje s kontrolnom sumom. Nginx, PostgreSQL, Certbot, Restic i OCR alate iz glavnog uputstva instalirajte kao sistemske pakete. Aplikacija cilja .NET 8 prema specifikaciji. Microsoft je završio podršku za .NET 8 10. novembra 2026. [Microsoftov pregled verzija](https://dotnet.microsoft.com/en-us/download/dotnet). Klijent je u `frontend/dist/autoskola/browser`. Svaka objava ima privatni direktorij pod `/opt/driving-school/releases` s izlazima `api/` i `web/`. Nginx i systemd koriste simboličku vezu `/opt/driving-school/current` koja pokazuje na aktivnu verziju.
 
 ```bash
 sudo useradd --system --create-home --home-dir /var/lib/driving-school --shell /usr/sbin/nologin driving-school
