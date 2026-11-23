@@ -50,6 +50,10 @@ U drugom PowerShell terminalu iz korijena projekta pokrenite `npm.cmd ci --prefi
 
 Swagger je dostupan u razvojnom režimu na `http://localhost:5080/swagger`. Klijent i API koriste isti origin preko proxyja. Razvojni HTTP kolačić postavite samo za lokalni rad.
 
+## Svakodnevni rad
+
+U listi **Kandidati** početni filteri su **Aktivan** i tekuća godina po vremenu u Sarajevu. Za pregled starijih upisa promijenite ili očistite godinu i kliknite **Pretraži**. Arhiviranje knjige, deaktiviranje i uklanjanje dokumenata potvrđuju se u modalu unutar aplikacije.
+
 ## Matična knjiga
 
 - Svaka autoškola ima odvojenu knjigu za svaku godinu. Više škola mogu imati knjigu za istu godinu. Upis je moguć samo za kandidata iz autoškole kojoj knjiga pripada.
